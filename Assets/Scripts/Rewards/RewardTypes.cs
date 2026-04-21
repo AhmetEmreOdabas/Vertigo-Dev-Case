@@ -7,6 +7,7 @@ namespace DevCase.Core
         BronzeChest,
         SilverChest,
         GoldChest,
+        Bomb
     }
 }
 

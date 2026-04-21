@@ -10,12 +10,28 @@ namespace DevCase.Core
         [SerializeField] private Image _rewardIcon;
         [SerializeField] private TextMeshProUGUI _rewardAmountText;
         private int _rewardAmount;
+        private bool _isBomb = false;
+        private SpinRewardEntry _currentRewardEntry;
+        public RewardTypes RewardType => _currentRewardEntry.Type;
+        public bool IsBomb => _isBomb;
         public int RewardAmount => _rewardAmount;
         public void SetReward(SpinRewardEntry rewardEntry)
         {
-            _rewardIcon.sprite = GameSpriteData.Instance.GetSpinRewardSprite(rewardEntry.Type);
-            _rewardAmountText.text = "x" + StringFormatter.ToShortString(rewardEntry.Amount);
-            _rewardAmount = rewardEntry.Amount;
+            _currentRewardEntry = rewardEntry;
+            SwitchToReward();
+        }
+        public void SwitchToBomb()
+        {
+            _rewardIcon.sprite = GameSpriteData.Instance.GetSpinRewardSprite(RewardTypes.Bomb);
+            _rewardAmountText.text = "Bomb";
+            _isBomb = true;
+        }
+        public void SwitchToReward()
+        {
+            _rewardIcon.sprite = GameSpriteData.Instance.GetSpinRewardSprite(_currentRewardEntry.Type);
+            _rewardAmountText.text = "x" + StringFormatter.ToShortString(_currentRewardEntry.Amount);
+            _rewardAmount = _currentRewardEntry.Amount;
+            _isBomb = false;
         }
     }
 }

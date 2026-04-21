@@ -769,6 +769,7 @@ MonoBehaviour:
   _spinData: {fileID: 11400000, guid: 83a93909b05f3674a9b793db81e3c5b3, type: 2}
   _spinPanel: {fileID: 1767213796}
   _rewardsPanel: {fileID: 914601790}
+  _spinRotateParent: {fileID: 1254993290}
   _spinButton: {fileID: 818457963}
   _playButton: {fileID: 98803941}
   _rewardsParent: {fileID: 961393396}
@@ -782,6 +783,7 @@ MonoBehaviour:
   - {fileID: 1751448022}
   - {fileID: 2142795074}
   _spinRewardItemPrefab: {fileID: 2293868838635703183, guid: 7ab29ace0c0687443bbbb95ab34553d5, type: 3}
+  _rewardsPanelItemPrefab: {fileID: 7721896893303178520, guid: 1c189f9777f582d42a6b5afe841a6d11, type: 3}
   _spinNameText: {fileID: 433757843}
   _spinMultiplierText: {fileID: 473074586}
   _spinWheelImage: {fileID: 1254993289}
@@ -1332,6 +1334,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: fe87c0e1cc204ed48ad3b37840f39efc, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+--- !u!224 &1254993290 stripped
+RectTransform:
+  m_CorrespondingSourceObject: {fileID: 2172410012939668711, guid: 4163c89ecfbcf734e8014c4898f45eac, type: 3}
+  m_PrefabInstance: {fileID: 2172410014101725551}
+  m_PrefabAsset: {fileID: 0}
 --- !u!224 &1414436311 stripped
 RectTransform:
   m_CorrespondingSourceObject: {fileID: 6220331903164855557, guid: 4163c89ecfbcf734e8014c4898f45eac, type: 3}
@@ -1781,6 +1788,10 @@ PrefabInstance:
     - target: {fileID: 2172410013419400074, guid: 4163c89ecfbcf734e8014c4898f45eac, type: 3}
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 2172410013419400074, guid: 4163c89ecfbcf734e8014c4898f45eac, type: 3}
+      propertyPath: m_ConstrainProportionsScale
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 2172410013419400075, guid: 4163c89ecfbcf734e8014c4898f45eac, type: 3}
       propertyPath: m_Name
