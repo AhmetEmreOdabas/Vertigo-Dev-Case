@@ -9,7 +9,7 @@ namespace DevCase.Core
         [Header("Design Settings")]
         public int SilverZoneSpinCount;
         public int GoldZoneSpinCount;
-        public SpinRewardEntry[] SpinRewardEntries = new SpinRewardEntry[8];
+        public List<SpinRewardEntry> SpinRewardEntries = new List<SpinRewardEntry>();
         [Header("Visual Settings")]
         public List<string> SpinNames = new List<string>();
         public List<Sprite> SpinWheelSprites = new List<Sprite>();

@@ -16,6 +16,8 @@ namespace DevCase.Core
         [SerializeField] private Transform _spinRotateParent;
         [SerializeField] private Button _spinButton;
         [SerializeField] private Button _playButton;
+        [SerializeField] private Button _leaveButton;
+        [SerializeField] private Button _safeLeaveButton;
         [SerializeField] private Transform _rewardsParent;
         [SerializeField] private List<Transform> _spinContentParents = new List<Transform>();
         [SerializeField] private SpinRewardItem _spinRewardItemPrefab;
@@ -25,6 +27,7 @@ namespace DevCase.Core
         [SerializeField] private Image _spinWheelImage;
         [SerializeField] private Image _spinIndicatorImage;
         private int _currentSpinIndex = 0;
+        private int _currentRewardMultiplier = 1;
         private List<SpinRewardItem> _currentRewardItems = new List<SpinRewardItem>();
         private List<SpinRewardItem> _currentRewardsPanelItems = new List<SpinRewardItem>();
         private SpinTypes _currentSpinType = SpinTypes.NormalSpin;
@@ -32,7 +35,7 @@ namespace DevCase.Core
         private Tween _spinTween;
         public void Initialize()
         {
-            for (int i = 0; i < _spinData.SpinRewardEntries.Length; i++)
+            for (int i = 0; i < _spinData.SpinRewardEntries.Count; i++)
             {
                 if (i < _spinContentParents.Count)
                 {
@@ -44,6 +47,7 @@ namespace DevCase.Core
             }
             _playButton.onClick.AddListener(OnPlayButtonClicked);
             _spinButton.onClick.AddListener(OnSpinButtonClicked);
+            _playButton.gameObject.SetActive(true);
         }
         private void SetSpinWheelTypeVisuals()
         {
@@ -71,6 +75,10 @@ namespace DevCase.Core
         }
         public void CheckAndSetRewardsForSpinType()
         {
+            for (int i = 0; i < _currentRewardItems.Count; i++)
+            {
+                _currentRewardItems[i].SwitchToReward();
+            }
             switch (_currentSpinType)
             {
                 case SpinTypes.NormalSpin:
@@ -92,6 +100,7 @@ namespace DevCase.Core
         {
             _spinButton.interactable = false;
             _spinTween?.Kill();
+            _spinRotateParent.localEulerAngles = Vector3.zero;
             int rewardIndex = GetRandomRewardIndex();
             float anglePerItem = 360f / _currentRewardItems.Count;
             float spinDuration = Random.Range(3f, 5f);
@@ -103,7 +112,48 @@ namespace DevCase.Core
                 .DORotate(new Vector3(0, 0, totalRotation), spinDuration, RotateMode.FastBeyond360)
                 .SetEase(Ease.OutCubic);
             await _spinTween.AsyncWaitForCompletion();
+            await RegisterReward(_currentRewardItems[rewardIndex]);
+            CheckAndSetRewardsForSpinType();
             _spinButton.interactable = true;
+        }
+        public async UniTask RegisterReward(SpinRewardItem spinRewardItem)
+        {
+            SpinRewardItem rewardItem = _currentRewardsPanelItems.Find(item => item.RewardType == spinRewardItem.RewardType);
+            if (rewardItem == null)
+            {
+                SpinRewardItem newItem = PoolManager.Instance.SpawnObject(_rewardsPanelItemPrefab);
+                newItem.transform.SetParent(_rewardsParent, false);
+                newItem.SetReward(spinRewardItem.SpinRewardEntry);
+                _currentRewardsPanelItems.Add(newItem);
+                return;
+            }
+            else if(rewardItem != null)
+            {
+                int rewardAmount = spinRewardItem.RewardAmount * _currentRewardMultiplier;
+                await rewardItem.AddRewardAmount(rewardAmount);
+                return;
+            }
+        }
+        public void ResetSpin()
+        {
+            _currentSpinIndex = 0;
+            _currentRewardMultiplier = 1;
+            _currentSpinType = SpinTypes.NormalSpin;
+            _currentSpinWheelType = SpinWheelTypes.BronzeWheel;
+            SetSpinWheelTypeVisuals();
+            foreach (var item in _currentRewardItems)
+            {
+                PoolManager.Instance.DespawnObject(item.gameObject);
+            }
+            _currentRewardItems.Clear();
+            foreach (var item in _currentRewardsPanelItems)
+            {
+                PoolManager.Instance.DespawnObject(item.gameObject);
+            }
+            _currentRewardsPanelItems.Clear();
+            _playButton.gameObject.SetActive(true);
+             _spinPanel.SetActive(false);
+             _rewardsPanel.SetActive(false);
         }
     }
 }
