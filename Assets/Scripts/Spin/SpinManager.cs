@@ -18,6 +18,11 @@ namespace DevCase.Core
         [SerializeField] private Button _playButton;
         [SerializeField] private Button _leaveButton;
         [SerializeField] private Button _safeLeaveButton;
+        [SerializeField] private GameObject _leaveButtonConfirmationParent;
+        [SerializeField] private Button _leaveButtonConfirm;
+        [SerializeField] private Button _leaveButtonCancel;
+        [SerializeField] private GameObject _bombFailScreen;
+        [SerializeField] private Button _bombFailScreenCloseButton;
         [SerializeField] private Transform _rewardsParent;
         [SerializeField] private List<Transform> _spinContentParents = new List<Transform>();
         [SerializeField] private SpinRewardItem _spinRewardItemPrefab;
@@ -47,6 +52,11 @@ namespace DevCase.Core
             }
             _playButton.onClick.AddListener(OnPlayButtonClicked);
             _spinButton.onClick.AddListener(OnSpinButtonClicked);
+            _leaveButton.onClick.AddListener(OnLeaveButtonClicked);
+            _leaveButtonConfirm.onClick.AddListener(OnLeaveButtonConfirmed);
+            _leaveButtonCancel.onClick.AddListener(OnLeaveButtonCancelled);
+            _safeLeaveButton.onClick.AddListener(OnSafeLeaveButtonClicked);
+            _bombFailScreenCloseButton.onClick.AddListener(BombFailScreenCloseClicked);
             _playButton.gameObject.SetActive(true);
         }
         private void SetSpinWheelTypeVisuals()
@@ -64,29 +74,54 @@ namespace DevCase.Core
         }
         private void OpenSpinPanel()
         {
-            _currentSpinIndex = 0;
+            _currentSpinIndex = 1;
             _currentSpinType = SpinTypes.NormalSpin;
             _currentSpinWheelType = SpinWheelTypes.BronzeWheel;
-            SetSpinWheelTypeVisuals();
             _spinPanel.SetActive(true);
             _rewardsPanel.SetActive(true);
             _spinButton.interactable = true;
-            CheckAndSetRewardsForSpinType();
+            _leaveButtonConfirmationParent.SetActive(false);
+            CheckAndSetupWheelForSpinType();
         }
-        public void CheckAndSetRewardsForSpinType()
+        public void CheckAndSetupWheelForSpinType()
         {
+            if (_currentSpinIndex % _spinData.GoldZoneSpinCount == 0)
+            {
+                _currentSpinWheelType = SpinWheelTypes.GoldWheel;
+                _currentSpinType = SpinTypes.FreeSpin;
+            }
+            else if (_currentSpinIndex % _spinData.SilverZoneSpinCount == 0)
+            {
+                _currentSpinType = SpinTypes.FreeSpin;
+                _currentSpinWheelType = SpinWheelTypes.SilverWheel;
+            }
+            else
+            {
+                _currentSpinType = SpinTypes.NormalSpin;
+                _currentSpinWheelType = SpinWheelTypes.BronzeWheel;
+            }
             for (int i = 0; i < _currentRewardItems.Count; i++)
             {
                 _currentRewardItems[i].SwitchToReward();
             }
+            _spinMultiplierText.text = $"Up To x{_currentRewardMultiplier} Rewards";
             switch (_currentSpinType)
             {
                 case SpinTypes.NormalSpin:
                     _currentRewardItems[Random.Range(0, _currentRewardItems.Count)].SwitchToBomb();
+                    _safeLeaveButton.gameObject.SetActive(false);
+                    _leaveButton.gameObject.SetActive(true);
+                    _safeLeaveButton.interactable = false;
+                    _leaveButton.interactable = true;
                     break;
                 case SpinTypes.FreeSpin:
+                    _safeLeaveButton.gameObject.SetActive(true);
+                    _leaveButton.gameObject.SetActive(false);
+                    _safeLeaveButton.interactable = true;
+                    _leaveButton.interactable = false;
                     break;
             }
+            SetSpinWheelTypeVisuals();
         }
         private int GetRandomRewardIndex()
         {
@@ -99,6 +134,8 @@ namespace DevCase.Core
         public async UniTask SpinTheWheel()
         {
             _spinButton.interactable = false;
+            _safeLeaveButton.interactable = false;
+            _leaveButton.interactable = false;
             _spinTween?.Kill();
             _spinRotateParent.localEulerAngles = Vector3.zero;
             int rewardIndex = GetRandomRewardIndex();
@@ -113,21 +150,40 @@ namespace DevCase.Core
                 .SetEase(Ease.OutCubic);
             await _spinTween.AsyncWaitForCompletion();
             await RegisterReward(_currentRewardItems[rewardIndex]);
-            CheckAndSetRewardsForSpinType();
+            _currentSpinIndex++;
+            _currentRewardMultiplier++;
+            if(_currentRewardItems[rewardIndex].IsBomb)
+            {
+                return;
+            }
+            CheckAndSetupWheelForSpinType();
             _spinButton.interactable = true;
+            _safeLeaveButton.interactable = true;
+            _leaveButton.interactable = true;
         }
         public async UniTask RegisterReward(SpinRewardItem spinRewardItem)
         {
+            if (spinRewardItem.IsBomb)
+            {
+                _spinButton.interactable = false;
+                _safeLeaveButton.interactable = false;
+                _leaveButton.interactable = false;
+                _bombFailScreen.SetActive(true);
+                return;
+            }
             SpinRewardItem rewardItem = _currentRewardsPanelItems.Find(item => item.RewardType == spinRewardItem.RewardType);
             if (rewardItem == null)
             {
                 SpinRewardItem newItem = PoolManager.Instance.SpawnObject(_rewardsPanelItemPrefab);
                 newItem.transform.SetParent(_rewardsParent, false);
                 newItem.SetReward(spinRewardItem.SpinRewardEntry);
+                newItem.transform.localScale = Vector3.one;
+                int rewardAmount = (spinRewardItem.RewardAmount * _currentRewardMultiplier) - spinRewardItem.RewardAmount;
                 _currentRewardsPanelItems.Add(newItem);
+                await newItem.AddRewardAmount(rewardAmount);
                 return;
             }
-            else if(rewardItem != null)
+            else if (rewardItem != null)
             {
                 int rewardAmount = spinRewardItem.RewardAmount * _currentRewardMultiplier;
                 await rewardItem.AddRewardAmount(rewardAmount);
@@ -136,24 +192,50 @@ namespace DevCase.Core
         }
         public void ResetSpin()
         {
-            _currentSpinIndex = 0;
+            _currentSpinIndex = 1;
             _currentRewardMultiplier = 1;
             _currentSpinType = SpinTypes.NormalSpin;
             _currentSpinWheelType = SpinWheelTypes.BronzeWheel;
             SetSpinWheelTypeVisuals();
             foreach (var item in _currentRewardItems)
             {
-                PoolManager.Instance.DespawnObject(item.gameObject);
+                item.SwitchToReward();
             }
-            _currentRewardItems.Clear();
             foreach (var item in _currentRewardsPanelItems)
             {
                 PoolManager.Instance.DespawnObject(item.gameObject);
             }
             _currentRewardsPanelItems.Clear();
             _playButton.gameObject.SetActive(true);
-             _spinPanel.SetActive(false);
-             _rewardsPanel.SetActive(false);
+            _spinPanel.SetActive(false);
+            _rewardsPanel.SetActive(false);
+        }
+
+        private void OnSafeLeaveButtonClicked()
+        {
+            //Reward player with current rewards
+            ResetSpin();
+        }
+
+        private void OnLeaveButtonCancelled()
+        {
+            _leaveButtonConfirmationParent.gameObject.SetActive(false);
+        }
+
+        private void OnLeaveButtonConfirmed()
+        {
+            _leaveButtonConfirmationParent.gameObject.SetActive(false);
+            ResetSpin();
+        }
+
+        private void OnLeaveButtonClicked()
+        {
+            _leaveButtonConfirmationParent.gameObject.SetActive(true);
+        }
+        private void BombFailScreenCloseClicked()
+        {
+            _bombFailScreen.SetActive(false);
+            ResetSpin();
         }
     }
 }
